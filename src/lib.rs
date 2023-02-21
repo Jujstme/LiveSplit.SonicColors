@@ -1,15 +1,17 @@
-//#![no_std]
-use asr::{signature::Signature, timer, timer::TimerState, watcher::Watcher, Address, Process};
+#![no_std]
 extern crate alloc;
 use alloc::str;
+use asr::{signature::Signature, time::Duration, timer, timer::TimerState, watcher::Watcher, Address, Process};
+use lol_alloc::{FreeListAllocator, LockedAllocator};
 
-/*
+#[global_allocator]
+static ALLOCATOR: LockedAllocator<FreeListAllocator> = LockedAllocator::new(FreeListAllocator::new());
+
 #[cfg(all(not(test), target_arch = "wasm32"))]
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
     core::arch::wasm32::unreachable()
 }
-*/
 
 static AUTOSPLITTER: spinning_top::Spinlock<State> = spinning_top::const_spinlock(State {
     game: None,
@@ -21,7 +23,7 @@ static AUTOSPLITTER: spinning_top::Spinlock<State> = spinning_top::const_spinloc
         eggshuttle_progressiveid: Watcher::new(),
         runstart: Watcher::new(),
         tr1rank: Watcher::new(),
-        accumulatedigt: asr::time::Duration::ZERO,
+        accumulatedigt: Duration::ZERO,
         currentgamemode: GameMode::AnyPercent,
     },
     // settings: None,
@@ -42,13 +44,13 @@ struct ProcessInfo {
 
 struct Watchers {
     levelid: Watcher<Levels>,
-    igt: Watcher<asr::time::Duration>,
+    igt: Watcher<Duration>,
     goalringreached: Watcher<bool>,
     eggshuttle_totalstages: Watcher<u8>,
     eggshuttle_progressiveid: Watcher<u8>,
     runstart: Watcher<u8>,
     tr1rank: Watcher<i8>,
-    accumulatedigt: asr::time::Duration,
+    accumulatedigt: Duration,
     currentgamemode: GameMode,
 }
 
@@ -146,14 +148,14 @@ fn update_internal(game: &Process, addresses: &MemoryPtr, watchers: &mut Watcher
     let level_id = game.read_pointer_path64::<[u8; 6]>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0xE0]);
     if !level_id.is_ok() {
         watchers.levelid.update(Some(Levels::None));
-        watchers.igt.update(Some(asr::time::Duration::ZERO));
+        watchers.igt.update(Some(Duration::ZERO));
         watchers.goalringreached.update(Some(false));
     } else {
         let level_id = level_id.ok();
         let Some(level) = level_id else { return };
         let Some(level) =  str::from_utf8(&level).ok() else { return };
 
-        let level = match level {
+        let level: Levels = match level {
             "stg110" => Levels::TropicalResortAct1,
             "stg130" => Levels::TropicalResortAct2,
             "stg120" => Levels::TropicalResortAct3,
@@ -225,7 +227,7 @@ fn update_internal(game: &Process, addresses: &MemoryPtr, watchers: &mut Watcher
         watchers.levelid.update(Some(level));
 
         let Some(igt) = game.read_pointer_path64::<f32>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x270]).ok() else { return };        
-        watchers.igt.update(Some(asr::time::Duration::milliseconds((igt * 100.0) as i64 * 10)));
+        watchers.igt.update(Some(Duration::milliseconds((igt * 100.0) as i64 * 10)));
 
         let Some(grr) = game.read_pointer_path64::<u8>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x110]).ok() else { return };
         watchers.goalringreached.update(Some((grr & (1 << 5)) != 0));
@@ -251,11 +253,11 @@ fn update_internal(game: &Process, addresses: &MemoryPtr, watchers: &mut Watcher
 
     // Adjusting other stuff
     if timer::state() == TimerState::NotRunning {
-        if watchers.accumulatedigt != asr::time::Duration::ZERO {
-            watchers.accumulatedigt = asr::time::Duration::ZERO
+        if watchers.accumulatedigt != Duration::ZERO {
+            watchers.accumulatedigt = Duration::ZERO
         }
 
-        let Some(eggshuttlecount) = watchers.eggshuttle_totalstages.pair else { return };
+        let Some(eggshuttlecount) = &watchers.eggshuttle_totalstages.pair else { return };
         if eggshuttlecount.current > 0 && eggshuttlecount.current <= 45 {
             watchers.currentgamemode = GameMode::EggShuttle
         } else {
@@ -263,17 +265,17 @@ fn update_internal(game: &Process, addresses: &MemoryPtr, watchers: &mut Watcher
         }
     }
 
-    let Some(igt) = watchers.igt.pair else { return };
-    if igt.old != asr::time::Duration::ZERO && igt.current == asr::time::Duration::ZERO {
+    let Some(igt) = &watchers.igt.pair else { return };
+    if igt.old != Duration::ZERO && igt.current == Duration::ZERO {
         watchers.accumulatedigt += igt.old
     }
 }
 
 fn start(state: &State) -> bool {
-    let Some(level_id) = state.watchers.levelid.pair else { return false };
-    let Some(igt) = state.watchers.igt.pair else { return false };
-    let Some(runstart) = state.watchers.runstart.pair else { return false };
-    let Some(tr1rank) = state.watchers.tr1rank.pair else { return false };
+    let Some(level_id) = &state.watchers.levelid.pair else { return false };
+    let Some(igt) = &state.watchers.igt.pair else { return false };
+    let Some(runstart) = &state.watchers.runstart.pair else { return false };
+    let Some(tr1rank) = &state.watchers.tr1rank.pair else { return false };
 
     match state.watchers.currentgamemode {
         GameMode::EggShuttle => level_id.current == Levels::TropicalResortAct1 && (level_id.old == Levels::None || (igt.old > asr::time::Duration::ZERO && igt.current == asr::time::Duration::ZERO)),
@@ -283,11 +285,11 @@ fn start(state: &State) -> bool {
 }
 
 fn split(state: &State) -> bool {
-    let Some(goal_ring) = state.watchers.goalringreached.pair else { return false };
+    let Some(goal_ring) = &state.watchers.goalringreached.pair else { return false };
 
     if state.watchers.currentgamemode == GameMode::EggShuttle {
-        let Some(progressiveid) = state.watchers.eggshuttle_progressiveid.pair else { return false };
-        let Some(totalstages) = state.watchers.eggshuttle_totalstages.pair else { return false };
+        let Some(progressiveid) = &state.watchers.eggshuttle_progressiveid.pair else { return false };
+        let Some(totalstages) = &state.watchers.eggshuttle_totalstages.pair else { return false };
 
         if progressiveid.old == totalstages.current - 1 {
             goal_ring.current && !goal_ring.old
@@ -295,7 +297,7 @@ fn split(state: &State) -> bool {
             progressiveid.current == progressiveid.old + 1
         }
     } else {
-        let Some(level_id) = state.watchers.levelid.pair else { return false };
+        let Some(level_id) = &state.watchers.levelid.pair else { return false };
 
         if level_id.old == Levels::TerminalVelocityAct2 {
             goal_ring.current && !goal_ring.old
@@ -307,17 +309,17 @@ fn split(state: &State) -> bool {
 
 fn reset(state: &State) -> bool {
     if state.watchers.currentgamemode == GameMode::EggShuttle {
-        let Some(igt) = state.watchers.igt.pair else { return false };
-        let Some(goal_ring) = state.watchers.goalringreached.pair else { return false };
-        igt.old != asr::time::Duration::ZERO && igt.current == asr::time::Duration::ZERO && !goal_ring.old
+        let Some(igt) = &state.watchers.igt.pair else { return false };
+        let Some(goal_ring) = &state.watchers.goalringreached.pair else { return false };
+        igt.old != Duration::ZERO && igt.current == Duration::ZERO && !goal_ring.old
     } else {
-        let Some(runstart) = state.watchers.runstart.pair else { return false };
+        let Some(runstart) = &state.watchers.runstart.pair else { return false };
         runstart.old == 110 && runstart.current == 35
     }
 }
 
-fn game_time(state: &State) -> asr::time::Duration {
-    let Some(igt) = state.watchers.igt.pair else { return asr::time::Duration::ZERO };
+fn game_time(state: &State) -> Duration {
+    let Some(igt) = &state.watchers.igt.pair else { return Duration::ZERO };
     igt.current + state.watchers.accumulatedigt
 }
 
