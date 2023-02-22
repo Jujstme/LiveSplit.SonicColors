@@ -1,11 +1,5 @@
 #![no_std]
-extern crate alloc;
-use alloc::str;
 use asr::{signature::Signature, time::Duration, timer, timer::TimerState, watcher::Watcher, Address, Process};
-use lol_alloc::{FreeListAllocator, LockedAllocator};
-
-#[global_allocator]
-static ALLOCATOR: LockedAllocator<FreeListAllocator> = LockedAllocator::new(FreeListAllocator::new());
 
 #[cfg(all(not(test), target_arch = "wasm32"))]
 #[panic_handler]
@@ -112,6 +106,7 @@ impl State {
             //}
 
             timer::set_game_time(game_time(self));
+
             if reset(self) {
                 timer::reset()
             } else if split(self) {
@@ -134,7 +129,7 @@ impl MemoryPtr {
         ptr += 0x4 + process.read::<u32>(Address(ptr)).ok()? as u64;
 
         Some(Self {
-            base_address: Address(ptr)
+            base_address: Address(ptr),
         })
     }
 }
@@ -146,91 +141,86 @@ pub extern "C" fn update() {
 
 fn update_internal(game: &Process, addresses: &MemoryPtr, watchers: &mut Watchers) {
     let level_id = game.read_pointer_path64::<[u8; 6]>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0xE0]);
-    if !level_id.is_ok() {
-        watchers.levelid.update(Some(Levels::None));
+    let mut level: Levels = Levels::None;
+    if level_id.is_ok(){
+        level = match &level_id.unwrap() {
+                b"stg110" => Levels::TropicalResortAct1,
+                b"stg130" => Levels::TropicalResortAct2,
+                b"stg120" => Levels::TropicalResortAct3,
+                b"stg140" => Levels::TropicalResortAct4,
+                b"stg150" => Levels::TropicalResortAct5,
+                b"stg160" => Levels::TropicalResortAct6,
+                b"stg190" => Levels::TropicalResortBoss,
+                b"stg210" => Levels::SweetMountainAct1,
+                b"stg230" => Levels::SweetMountainAct2,
+                b"stg220" => Levels::SweetMountainAct3,
+                b"stg260" => Levels::SweetMountainAct4,
+                b"stg240" => Levels::SweetMountainAct5,
+                b"stg250" => Levels::SweetMountainAct6,
+                b"stg290" => Levels::SweetMountainBoss,
+                b"stg310" => Levels::StarlightCarnivalAct1,
+                b"stg330" => Levels::StarlightCarnivalAct2,
+                b"stg340" => Levels::StarlightCarnivalAct3,
+                b"stg350" => Levels::StarlightCarnivalAct4,
+                b"stg320" => Levels::StarlightCarnivalAct5,
+                b"stg360" => Levels::StarlightCarnivalAct6,
+                b"stg390" => Levels::StarlightCarnivalBoss,
+                b"stg410" => Levels::PlanetWispAct1,
+                b"stg440" => Levels::PlanetWispAct2,
+                b"stg450" => Levels::PlanetWispAct3,
+                b"stg430" => Levels::PlanetWispAct4,
+                b"stg460" => Levels::PlanetWispAct5,
+                b"stg420" => Levels::PlanetWispAct6,
+                b"stg490" => Levels::PlanetWispBoss,
+                b"stg510" => Levels::AquariumParkAct1,
+                b"stg540" => Levels::AquariumParkAct2,
+                b"stg550" => Levels::AquariumParkAct3,
+                b"stg530" => Levels::AquariumParkAct4,
+                b"stg560" => Levels::AquariumParkAct5,
+                b"stg520" => Levels::AquariumParkAct6,
+                b"stg590" => Levels::AquariumParkBoss,
+                b"stg610" => Levels::AsteroidCoasterAct1,
+                b"stg630" => Levels::AsteroidCoasterAct2,
+                b"stg640" => Levels::AsteroidCoasterAct3,
+                b"stg650" => Levels::AsteroidCoasterAct4,
+                b"stg660" => Levels::AsteroidCoasterAct5,
+                b"stg620" => Levels::AsteroidCoasterAct6,
+                b"stg690" => Levels::AsteroidCoasterBoss,
+                b"stg710" => Levels::TerminalVelocityAct1,
+                b"stg790" => Levels::TerminalVelocityBoss,
+                b"stg720" => Levels::TerminalVelocityAct2,
+                b"stgD10" => Levels::SonicSimulatorAct1_1,
+                b"stgB20" => Levels::SonicSimulatorAct1_2,
+                b"stgE50" => Levels::SonicSimulatorAct1_3,
+                b"stgD20" => Levels::SonicSimulatorAct2_1,
+                b"stgB30" => Levels::SonicSimulatorAct2_2,
+                b"stgF30" => Levels::SonicSimulatorAct2_3,
+                b"stgG10" => Levels::SonicSimulatorAct3_1,
+                b"stgG30" => Levels::SonicSimulatorAct3_2,
+                b"stgA10" => Levels::SonicSimulatorAct3_3,
+                b"stgD30" => Levels::SonicSimulatorAct4_1,
+                b"stgG20" => Levels::SonicSimulatorAct4_2,
+                b"stgC50" => Levels::SonicSimulatorAct4_3,
+                b"stgE30" => Levels::SonicSimulatorAct5_1,
+                b"stgB10" => Levels::SonicSimulatorAct5_2,
+                b"stgE40" => Levels::SonicSimulatorAct5_3,
+                b"stgG40" => Levels::SonicSimulatorAct6_1,
+                b"stgC40" => Levels::SonicSimulatorAct6_2,
+                b"stgF40" => Levels::SonicSimulatorAct6_3,
+                b"stgA30" => Levels::SonicSimulatorAct7_1,
+                b"stgE20" => Levels::SonicSimulatorAct7_2,
+                b"stgC10" => Levels::SonicSimulatorAct7_3,
+                _ => Levels::None
+        };
+    }
+    watchers.levelid.update(Some(level));
+
+    if level == Levels::None {
         watchers.igt.update(Some(Duration::ZERO));
         watchers.goalringreached.update(Some(false));
     } else {
-        let level_id = level_id.ok();
-        let Some(level) = level_id else { return };
-        let Some(level) =  str::from_utf8(&level).ok() else { return };
-
-        let level: Levels = match level {
-            "stg110" => Levels::TropicalResortAct1,
-            "stg130" => Levels::TropicalResortAct2,
-            "stg120" => Levels::TropicalResortAct3,
-            "stg140" => Levels::TropicalResortAct4,
-            "stg150" => Levels::TropicalResortAct5,
-            "stg160" => Levels::TropicalResortAct6,
-            "stg190" => Levels::TropicalResortBoss,
-            "stg210" => Levels::SweetMountainAct1,
-            "stg230" => Levels::SweetMountainAct2,
-            "stg220" => Levels::SweetMountainAct3,
-            "stg260" => Levels::SweetMountainAct4,
-            "stg240" => Levels::SweetMountainAct5,
-            "stg250" => Levels::SweetMountainAct6,
-            "stg290" => Levels::SweetMountainBoss,
-            "stg310" => Levels::StarlightCarnivalAct1,
-            "stg330" => Levels::StarlightCarnivalAct2,
-            "stg340" => Levels::StarlightCarnivalAct3,
-            "stg350" => Levels::StarlightCarnivalAct4,
-            "stg320" => Levels::StarlightCarnivalAct5,
-            "stg360" => Levels::StarlightCarnivalAct6,
-            "stg390" => Levels::StarlightCarnivalBoss,
-            "stg410" => Levels::PlanetWispAct1,
-            "stg440" => Levels::PlanetWispAct2,
-            "stg450" => Levels::PlanetWispAct3,
-            "stg430" => Levels::PlanetWispAct4,
-            "stg460" => Levels::PlanetWispAct5,
-            "stg420" => Levels::PlanetWispAct6,
-            "stg490" => Levels::PlanetWispBoss,
-            "stg510" => Levels::AquariumParkAct1,
-            "stg540" => Levels::AquariumParkAct2,
-            "stg550" => Levels::AquariumParkAct3,
-            "stg530" => Levels::AquariumParkAct4,
-            "stg560" => Levels::AquariumParkAct5,
-            "stg520" => Levels::AquariumParkAct6,
-            "stg590" => Levels::AquariumParkBoss,
-            "stg610" => Levels::AsteroidCoasterAct1,
-            "stg630" => Levels::AsteroidCoasterAct2,
-            "stg640" => Levels::AsteroidCoasterAct3,
-            "stg650" => Levels::AsteroidCoasterAct4,
-            "stg660" => Levels::AsteroidCoasterAct5,
-            "stg620" => Levels::AsteroidCoasterAct6,
-            "stg690" => Levels::AsteroidCoasterBoss,
-            "stg710" => Levels::TerminalVelocityAct1,
-            "stg790" => Levels::TerminalVelocityBoss,
-            "stg720" => Levels::TerminalVelocityAct2,
-            "stgD10" => Levels::SonicSimulatorAct1_1,
-            "stgB20" => Levels::SonicSimulatorAct1_2,
-            "stgE50" => Levels::SonicSimulatorAct1_3,
-            "stgD20" => Levels::SonicSimulatorAct2_1,
-            "stgB30" => Levels::SonicSimulatorAct2_2,
-            "stgF30" => Levels::SonicSimulatorAct2_3,
-            "stgG10" => Levels::SonicSimulatorAct3_1,
-            "stgG30" => Levels::SonicSimulatorAct3_2,
-            "stgA10" => Levels::SonicSimulatorAct3_3,
-            "stgD30" => Levels::SonicSimulatorAct4_1,
-            "stgG20" => Levels::SonicSimulatorAct4_2,
-            "stgC50" => Levels::SonicSimulatorAct4_3,
-            "stgE30" => Levels::SonicSimulatorAct5_1,
-            "stgB10" => Levels::SonicSimulatorAct5_2,
-            "stgE40" => Levels::SonicSimulatorAct5_3,
-            "stgG40" => Levels::SonicSimulatorAct6_1,
-            "stgC40" => Levels::SonicSimulatorAct6_2,
-            "stgF40" => Levels::SonicSimulatorAct6_3,
-            "stgA30" => Levels::SonicSimulatorAct7_1,
-            "stgE20" => Levels::SonicSimulatorAct7_2,
-            "stgC10" => Levels::SonicSimulatorAct7_3,
-            _ => Levels::None
-        };
-        watchers.levelid.update(Some(level));
-
-        let Some(igt) = game.read_pointer_path64::<f32>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x270]).ok() else { return };        
-        watchers.igt.update(Some(Duration::milliseconds((igt * 100.0) as i64 * 10)));
-
-        let Some(grr) = game.read_pointer_path64::<u8>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x110]).ok() else { return };
-        watchers.goalringreached.update(Some((grr & (1 << 5)) != 0));
+        watchers.igt.update(Some(Duration::milliseconds((game.read_pointer_path64::<f32>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x270]).unwrap_or(0.0) * 100.0) as i64 * 10)));
+        watchers.goalringreached.update(Some((game.read_pointer_path64::<u8>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x110]).unwrap_or(0) & (1 << 5)) != 0));    
     }
 
     let eggsh = game.read_pointer_path64::<u8>(addresses.base_address.0, &[0, 0x8, 0x38, 0x68, 0x110, 0x0]);
@@ -399,3 +389,9 @@ enum Levels {
     SonicSimulatorAct7_3,
     None,
 }
+
+/*
+fn get_string_utf8(input: &[u8]) -> &str {
+    str::from_utf8(&input[0..input.iter().position(|&c| c == b'\0').unwrap_or(input.len())]).unwrap_or("")
+}
+*/
