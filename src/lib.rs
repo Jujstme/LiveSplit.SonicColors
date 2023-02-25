@@ -121,7 +121,7 @@ impl State {
             if start(self) {
                 timer::start();
             }
-        }     
+        }
     }
 }
 
