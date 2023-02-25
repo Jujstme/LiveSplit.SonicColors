@@ -91,7 +91,10 @@ impl State {
         }
 
         // Get memory addresses
-        let Some(addresses) = &game.addresses else { game.addresses = MemoryPtr::new(&game.game, game.main_module_base, game.main_module_size); return; };
+        let Some(addresses) = &game.addresses else {
+            game.addresses = MemoryPtr::new(&game.game, game.main_module_base, game.main_module_size);
+            return;
+        };
 
         // Update the watchers variables
         let game = &game.game;
@@ -119,7 +122,7 @@ impl State {
                 timer::start();
             }
         }     
-    }    
+    }
 }
 
 impl MemoryPtr {
@@ -141,86 +144,86 @@ pub extern "C" fn update() {
 
 fn update_internal(game: &Process, addresses: &MemoryPtr, watchers: &mut Watchers) {
     let level_id = game.read_pointer_path64::<[u8; 6]>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0xE0]);
-    let mut level: Levels = Levels::None;
-    if level_id.is_ok(){
-        level = match &level_id.unwrap() {
-                b"stg110" => Levels::TropicalResortAct1,
-                b"stg130" => Levels::TropicalResortAct2,
-                b"stg120" => Levels::TropicalResortAct3,
-                b"stg140" => Levels::TropicalResortAct4,
-                b"stg150" => Levels::TropicalResortAct5,
-                b"stg160" => Levels::TropicalResortAct6,
-                b"stg190" => Levels::TropicalResortBoss,
-                b"stg210" => Levels::SweetMountainAct1,
-                b"stg230" => Levels::SweetMountainAct2,
-                b"stg220" => Levels::SweetMountainAct3,
-                b"stg260" => Levels::SweetMountainAct4,
-                b"stg240" => Levels::SweetMountainAct5,
-                b"stg250" => Levels::SweetMountainAct6,
-                b"stg290" => Levels::SweetMountainBoss,
-                b"stg310" => Levels::StarlightCarnivalAct1,
-                b"stg330" => Levels::StarlightCarnivalAct2,
-                b"stg340" => Levels::StarlightCarnivalAct3,
-                b"stg350" => Levels::StarlightCarnivalAct4,
-                b"stg320" => Levels::StarlightCarnivalAct5,
-                b"stg360" => Levels::StarlightCarnivalAct6,
-                b"stg390" => Levels::StarlightCarnivalBoss,
-                b"stg410" => Levels::PlanetWispAct1,
-                b"stg440" => Levels::PlanetWispAct2,
-                b"stg450" => Levels::PlanetWispAct3,
-                b"stg430" => Levels::PlanetWispAct4,
-                b"stg460" => Levels::PlanetWispAct5,
-                b"stg420" => Levels::PlanetWispAct6,
-                b"stg490" => Levels::PlanetWispBoss,
-                b"stg510" => Levels::AquariumParkAct1,
-                b"stg540" => Levels::AquariumParkAct2,
-                b"stg550" => Levels::AquariumParkAct3,
-                b"stg530" => Levels::AquariumParkAct4,
-                b"stg560" => Levels::AquariumParkAct5,
-                b"stg520" => Levels::AquariumParkAct6,
-                b"stg590" => Levels::AquariumParkBoss,
-                b"stg610" => Levels::AsteroidCoasterAct1,
-                b"stg630" => Levels::AsteroidCoasterAct2,
-                b"stg640" => Levels::AsteroidCoasterAct3,
-                b"stg650" => Levels::AsteroidCoasterAct4,
-                b"stg660" => Levels::AsteroidCoasterAct5,
-                b"stg620" => Levels::AsteroidCoasterAct6,
-                b"stg690" => Levels::AsteroidCoasterBoss,
-                b"stg710" => Levels::TerminalVelocityAct1,
-                b"stg790" => Levels::TerminalVelocityBoss,
-                b"stg720" => Levels::TerminalVelocityAct2,
-                b"stgD10" => Levels::SonicSimulatorAct1_1,
-                b"stgB20" => Levels::SonicSimulatorAct1_2,
-                b"stgE50" => Levels::SonicSimulatorAct1_3,
-                b"stgD20" => Levels::SonicSimulatorAct2_1,
-                b"stgB30" => Levels::SonicSimulatorAct2_2,
-                b"stgF30" => Levels::SonicSimulatorAct2_3,
-                b"stgG10" => Levels::SonicSimulatorAct3_1,
-                b"stgG30" => Levels::SonicSimulatorAct3_2,
-                b"stgA10" => Levels::SonicSimulatorAct3_3,
-                b"stgD30" => Levels::SonicSimulatorAct4_1,
-                b"stgG20" => Levels::SonicSimulatorAct4_2,
-                b"stgC50" => Levels::SonicSimulatorAct4_3,
-                b"stgE30" => Levels::SonicSimulatorAct5_1,
-                b"stgB10" => Levels::SonicSimulatorAct5_2,
-                b"stgE40" => Levels::SonicSimulatorAct5_3,
-                b"stgG40" => Levels::SonicSimulatorAct6_1,
-                b"stgC40" => Levels::SonicSimulatorAct6_2,
-                b"stgF40" => Levels::SonicSimulatorAct6_3,
-                b"stgA30" => Levels::SonicSimulatorAct7_1,
-                b"stgE20" => Levels::SonicSimulatorAct7_2,
-                b"stgC10" => Levels::SonicSimulatorAct7_3,
-                _ => Levels::None
-        };
-    }
+    let level = match &level_id {
+        Ok(x) => match x {
+            b"stg110" => Levels::TropicalResortAct1,
+            b"stg130" => Levels::TropicalResortAct2,
+            b"stg120" => Levels::TropicalResortAct3,
+            b"stg140" => Levels::TropicalResortAct4,
+            b"stg150" => Levels::TropicalResortAct5,
+            b"stg160" => Levels::TropicalResortAct6,
+            b"stg190" => Levels::TropicalResortBoss,
+            b"stg210" => Levels::SweetMountainAct1,
+            b"stg230" => Levels::SweetMountainAct2,
+            b"stg220" => Levels::SweetMountainAct3,
+            b"stg260" => Levels::SweetMountainAct4,
+            b"stg240" => Levels::SweetMountainAct5,
+            b"stg250" => Levels::SweetMountainAct6,
+            b"stg290" => Levels::SweetMountainBoss,
+            b"stg310" => Levels::StarlightCarnivalAct1,
+            b"stg330" => Levels::StarlightCarnivalAct2,
+            b"stg340" => Levels::StarlightCarnivalAct3,
+            b"stg350" => Levels::StarlightCarnivalAct4,
+            b"stg320" => Levels::StarlightCarnivalAct5,
+            b"stg360" => Levels::StarlightCarnivalAct6,
+            b"stg390" => Levels::StarlightCarnivalBoss,
+            b"stg410" => Levels::PlanetWispAct1,
+            b"stg440" => Levels::PlanetWispAct2,
+            b"stg450" => Levels::PlanetWispAct3,
+            b"stg430" => Levels::PlanetWispAct4,
+            b"stg460" => Levels::PlanetWispAct5,
+            b"stg420" => Levels::PlanetWispAct6,
+            b"stg490" => Levels::PlanetWispBoss,
+            b"stg510" => Levels::AquariumParkAct1,
+            b"stg540" => Levels::AquariumParkAct2,
+            b"stg550" => Levels::AquariumParkAct3,
+            b"stg530" => Levels::AquariumParkAct4,
+            b"stg560" => Levels::AquariumParkAct5,
+            b"stg520" => Levels::AquariumParkAct6,
+            b"stg590" => Levels::AquariumParkBoss,
+            b"stg610" => Levels::AsteroidCoasterAct1,
+            b"stg630" => Levels::AsteroidCoasterAct2,
+            b"stg640" => Levels::AsteroidCoasterAct3,
+            b"stg650" => Levels::AsteroidCoasterAct4,
+            b"stg660" => Levels::AsteroidCoasterAct5,
+            b"stg620" => Levels::AsteroidCoasterAct6,
+            b"stg690" => Levels::AsteroidCoasterBoss,
+            b"stg710" => Levels::TerminalVelocityAct1,
+            b"stg790" => Levels::TerminalVelocityBoss,
+            b"stg720" => Levels::TerminalVelocityAct2,
+            b"stgD10" => Levels::SonicSimulatorAct1_1,
+            b"stgB20" => Levels::SonicSimulatorAct1_2,
+            b"stgE50" => Levels::SonicSimulatorAct1_3,
+            b"stgD20" => Levels::SonicSimulatorAct2_1,
+            b"stgB30" => Levels::SonicSimulatorAct2_2,
+            b"stgF30" => Levels::SonicSimulatorAct2_3,
+            b"stgG10" => Levels::SonicSimulatorAct3_1,
+            b"stgG30" => Levels::SonicSimulatorAct3_2,
+            b"stgA10" => Levels::SonicSimulatorAct3_3,
+            b"stgD30" => Levels::SonicSimulatorAct4_1,
+            b"stgG20" => Levels::SonicSimulatorAct4_2,
+            b"stgC50" => Levels::SonicSimulatorAct4_3,
+            b"stgE30" => Levels::SonicSimulatorAct5_1,
+            b"stgB10" => Levels::SonicSimulatorAct5_2,
+            b"stgE40" => Levels::SonicSimulatorAct5_3,
+            b"stgG40" => Levels::SonicSimulatorAct6_1,
+            b"stgC40" => Levels::SonicSimulatorAct6_2,
+            b"stgF40" => Levels::SonicSimulatorAct6_3,
+            b"stgA30" => Levels::SonicSimulatorAct7_1,
+            b"stgE20" => Levels::SonicSimulatorAct7_2,
+            b"stgC10" => Levels::SonicSimulatorAct7_3,
+            _ => Levels::None
+        },
+        _ => Levels::None,
+    };
     watchers.levelid.update(Some(level));
 
     if level == Levels::None {
         watchers.igt.update(Some(Duration::ZERO));
         watchers.goalringreached.update(Some(false));
     } else {
-        watchers.igt.update(Some(Duration::milliseconds((game.read_pointer_path64::<f32>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x270]).unwrap_or(0.0) * 100.0) as i64 * 10)));
-        watchers.goalringreached.update(Some((game.read_pointer_path64::<u8>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x110]).unwrap_or(0) & (1 << 5)) != 0));    
+        watchers.igt.update(Some(Duration::milliseconds((game.read_pointer_path64::<f32>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x270]).unwrap_or_default() * 100.0) as i64 * 10)));
+        watchers.goalringreached.update(Some((game.read_pointer_path64::<u8>(addresses.base_address.0, &[0, 0x8, 0x38, 0x60, 0x110]).unwrap_or_default() & (1 << 5)) != 0));    
     }
 
     let eggsh = game.read_pointer_path64::<u8>(addresses.base_address.0, &[0, 0x8, 0x38, 0x68, 0x110, 0x0]);
@@ -313,13 +316,13 @@ fn game_time(state: &State) -> Duration {
     igt.current + state.watchers.accumulatedigt
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 enum GameMode {
     AnyPercent,
     EggShuttle
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 enum Levels {
     TropicalResortAct1,
     TropicalResortAct2,
